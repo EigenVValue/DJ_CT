@@ -1,0 +1,369 @@
+// Copyright (C) 2017, Dominik Wodniok
+// This software may be modified and distributed under the terms
+// of the BSD 3-Clause license.
+// See the LICENSE.txt file for details.
+
+#ifndef EXAMPLE_H_INCLUDED
+#define EXAMPLE_H_INCLUDED
+
+/// \file   example.h
+/// \author Dominik Wodniok
+/// \date   2009
+
+// std includes
+#include <string>
+
+// stl includes
+#include <vector>
+
+// dual mc builder vertex and quad definitions
+#include "dualmc.h"
+
+#include <string>
+#include "dependencies/include/glm/glm.hpp"
+
+/// Example application for demonstrating the dual marching cubes builder.
+class DualMCExample {
+public:
+	/// run example
+	void run(
+		//const char* raw,
+		const std::string path,
+		const unsigned int *size,
+		const float iso,
+		std::vector<glm::vec3> & objVertices,
+		std::vector<unsigned int> & objFaces);
+
+private:
+
+	/// Structure for the program options.
+	struct AppOptions {
+		std::string inputFile;
+		int32_t dimX;
+		int32_t dimY;
+		int32_t dimZ;
+		float isoValue;
+		bool generateCaffeine;
+		bool generateQuadSoup;
+		bool generateManifold;
+		std::string outputFile;
+	};
+
+	/// Load volume from raw file.
+	bool loadRawFile(const char* raw, int32_t dimX, int32_t dimY, int32_t dimZ);
+
+	/// Compute the iso surface for the specified iso value. Optionally generate
+	/// a quad soup.
+	void computeSurface(float const iso, bool const generateSoup, bool const generateManifold);
+
+	void generateCaffeine();
+
+private:
+	/// struct for volume data information
+	struct Volume {
+		// volume grid extents
+		int32_t dimX;
+		int32_t dimY;
+		int32_t dimZ;
+		// bit depth, should be 8 or 16
+		int32_t bitDepth;
+		/// volume data
+		std::vector<uint8_t> data;
+	};
+
+	/// example volume
+	Volume volume;
+
+	/// Class for a volumetric sphere with gaussian fall-off.
+	class RadialGaussian {
+	public:
+		/// Initialize with center coordinates and half density radius.
+		RadialGaussian(float cX, float cY, float cZ, float variance);
+		// evaluate the sphere function
+		float eval(float x, float y, float z) const;
+	private:
+		// Coordinates of the sphere center.
+		float cX;
+		float cY;
+		float cZ;
+		// precomputed factors
+		float normalization;
+		float falloff;
+
+	};
+
+	/// array of vertices for the extracted surface
+	std::vector<dualmc::Vertex> vertices;
+
+	/// array of quad indices for the extracted surface
+	std::vector<dualmc::Quad> quads;
+};
+
+#endif // EXAMPLE_H_INCLUDED
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Copyright (C) 2017, Dominik Wodniok
+// This software may be modified and distributed under the terms
+// of the BSD 3-Clause license.
+// See the LICENSE.txt file for details.
+
+/// \file   example.cpp
+/// \author Dominik Wodniok
+/// \date   2009
+
+// C libs
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
+
+// std libs
+#include <chrono>
+#include <fstream>
+#include <iostream>
+#include <limits>
+
+// stl
+#include <vector>
+
+// dual mc builder
+#include "dualmc.h"
+
+// main include
+#include "example.h"
+
+#include "dependencies/include/glm/glm.hpp"
+
+using std::chrono::high_resolution_clock;
+using std::chrono::duration;
+using std::chrono::duration_cast;
+
+//------------------------------------------------------------------------------
+
+void DualMCExample::run(
+	//const char* raw,
+	const std::string path,
+	const unsigned int *size,
+	const float iso,
+	std::vector<glm::vec3> & objVertices,
+	std::vector<unsigned int> & objFaces
+) {
+	// parse program options
+	AppOptions options;
+	// parse arguments
+	{
+		options.generateCaffeine = false;
+		options.generateQuadSoup = false;
+		options.generateManifold = false;
+
+		// -iso
+		options.isoValue = iso;
+
+		// -raw
+		options.dimX = size[0];
+		options.dimY = size[1];
+		options.dimZ = size[2];
+	}
+
+	// load raw file
+	{
+		volume.dimX = size[0];
+		volume.dimY = size[1];
+		volume.dimZ = size[2];
+		volume.data.resize(size[0]*size[1]*size[2]);
+
+		// read data
+		volume.data = raw;
+	}
+
+	// compute ISO surface
+	computeSurface(options.isoValue, options.generateQuadSoup, options.generateManifold);
+
+	// Get vertices
+	for (auto const & v : vertices) {
+		glm::vec3 vertex;
+		vertex.x = v.x;
+		vertex.y = v.y;
+		vertex.z = v.z;
+		objVertices.push_back(vertex);
+	}
+
+	// Get quad indices
+	for (auto const & q : quads) {
+		unsigned int face[4];
+		face[0] = q.i0;
+		face[1] = q.i1;
+		face[2] = q.i2;
+		face[3] = q.i3;
+		objFaces.push_back(face[0]);
+		objFaces.push_back(face[1]);
+		objFaces.push_back(face[2]);
+
+		objFaces.push_back(face[0]);
+		objFaces.push_back(face[2]);
+		objFaces.push_back(face[3]);
+	}
+}
+
+//------------------------------------------------------------------------------
+
+void DualMCExample::computeSurface(float const iso, bool const generateSoup, bool const generateManifold) {
+	std::cout << "Computing surface" << std::endl;
+
+	// measure extraction time
+	high_resolution_clock::time_point const startTime = high_resolution_clock::now();
+
+	// construct iso surface
+	dualmc::DualMC<uint8_t> builder;
+	builder.build(
+		&volume.data.front(), 
+		volume.dimX, 
+		volume.dimY, 
+		volume.dimZ, 
+		iso * std::numeric_limits<uint8_t>::max(), 
+		generateManifold, 
+		generateSoup, 
+		vertices, 
+		quads
+	);
+
+
+	high_resolution_clock::time_point const endTime = high_resolution_clock::now();
+	duration<double> const diffTime = duration_cast<duration<double>>(endTime - startTime);
+	double const extractionTime = diffTime.count();
+
+	std::cout << "Extraction time: " << extractionTime << "s" << std::endl;
+}
+
+//------------------------------------------------------------------------------
+
+void DualMCExample::generateCaffeine() {
+	std::cout << "Generating caffeine volume" << std::endl;
+
+	// initialize volume dimensions and memory
+	volume.dimX = 128;
+	volume.dimY = 128;
+	volume.dimZ = 128;
+	size_t const numDataPoints = volume.dimX * volume.dimY * volume.dimZ;
+	volume.data.resize(numDataPoints * 2);
+	volume.bitDepth = 16;
+
+	float invDimX = 1.0f / (volume.dimX - 1);
+	float invDimY = 1.0f / (volume.dimY - 1);
+	float invDimZ = 1.0f / (volume.dimZ - 1);
+
+	// create caffeine molecule
+	// 3D structure from https://pubchem.ncbi.nlm.nih.gov/compound/caffeine#section=Top
+
+	// caffeine scale
+	float constexpr s = 1.0f / 10.0f;
+	// caffeine offset
+	float constexpr oX = 0.5f;
+	float constexpr oY = 0.5f;
+	float constexpr oZ = 0.5f;
+	// atom scale scale
+	//float constexpr as = 0.001f/70.0f/70.0f;
+	float constexpr as = 0.025*0.025 / 70.0f / 70.0f;
+	// atom scales
+	float const atomScales[] = { 25 * 25 * as,70 * 70 * as,65 * 65 * as,60 * 60 * as };
+	enum ElementType { HYDROGEN = 0, CARBON = 1, NITROGEN = 2, OXYGEN = 3 };
+
+	// approximate electron density with radial Gaussians.
+	std::vector<RadialGaussian> atoms;
+	atoms.reserve(24);
+	// 1 hydrogen, 6 carbon, 7 nitrogen, 8 oxygen
+	atoms.emplace_back(0.47 * s + oX, 2.5688 * s + oY, 0.0006 * s + oZ, atomScales[OXYGEN]); // 8
+	atoms.emplace_back(-3.1271 * s + oX, -0.4436 * s + oY, -0.0003 * s + oZ, atomScales[OXYGEN]); // 8
+	atoms.emplace_back(-0.9686 * s + oX, -1.3125 * s + oY, 0 * s + oZ, atomScales[NITROGEN]); // 7
+	atoms.emplace_back(2.2182 * s + oX, 0.1412 * s + oY, -0.0003 * s + oZ, atomScales[NITROGEN]); // 7
+	atoms.emplace_back(-1.3477 * s + oX, 1.0797 * s + oY, -0.0001 * s + oZ, atomScales[NITROGEN]); // 7
+	atoms.emplace_back(1.4119 * s + oX, -1.9372 * s + oY, 0.0002 * s + oZ, atomScales[NITROGEN]); // 7
+	atoms.emplace_back(0.8579 * s + oX, 0.2592 * s + oY, -0.0008 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(0.3897 * s + oX, -1.0264 * s + oY, -0.0004 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(-1.9061 * s + oX, -0.2495 * s + oY, -0.0004 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(0.0307 * s + oX, 1.422 * s + oY, -0.0006 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(2.5032 * s + oX, -1.1998 * s + oY, 0.0003 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(-1.4276 * s + oX, -2.6960 * s + oY, 0.0008 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(3.1926 * s + oX, 1.2061 * s + oY, 0.0003 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(-2.2969 * s + oX, 2.1881 * s + oY, 0.0007 * s + oZ, atomScales[CARBON]); // 6
+	atoms.emplace_back(3.5163 * s + oX, -1.5787 * s + oY, 0.0008 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-1.0451 * s + oX, -3.1973 * s + oY, -0.8937 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-2.5186 * s + oX, -2.7596 * s + oY, 0.0011 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-1.0447 * s + oX, -3.1963 * s + oY, 0.8957 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(4.1992 * s + oX, 0.7801 * s + oY, 0.0002 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(3.0468 * s + oX, 1.8092 * s + oY, -0.8992 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(3.0466 * s + oX, 1.8083 * s + oY, 0.9004 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-1.8087 * s + oX, 3.1651 * s + oY, -0.0003 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-2.9322 * s + oX, 2.1027 * s + oY, 0.8881 * s + oZ, atomScales[HYDROGEN]); // 1
+	atoms.emplace_back(-2.9346 * s + oX, 2.1021 * s + oY, -0.8849 * s + oZ, atomScales[HYDROGEN]); // 1
+
+	uint16_t * data16Bit = (uint16_t*)&volume.data.front();
+
+	// scale for density field
+	float constexpr postDensityScale = 2.5f;
+
+	// volume write position
+	int32_t p = 0;
+	// iterate all voxels
+	// compute canoncical [0,1]^3 volume coordinates for density evaluation
+	for (int32_t z = 0; z < volume.dimZ; ++z) {
+		float const nZ = float(z) * invDimZ;
+		for (int32_t y = 0; y < volume.dimY; ++y) {
+			float const nY = float(y) * invDimY;
+			for (int32_t x = 0; x < volume.dimX; ++x, ++p) {
+				float const nX = float(x) * invDimX;
+				float rho = 0.0f;
+				// compute sum of electron densities
+				for (auto const & a : atoms) {
+					rho += a.eval(nX, nY, nZ);
+				}
+				rho *= postDensityScale;
+				if (rho > 1.0f)
+					rho = 1.0f;
+				data16Bit[p] = rho * std::numeric_limits<uint16_t>::max();
+			}
+		}
+	}
+}
+
+//------------------------------------------------------------------------------
+
+DualMCExample::RadialGaussian::RadialGaussian(
+	float cX,
+	float cY,
+	float cZ,
+	float variance
+) : cX(cX), cY(cY), cZ(cZ) {
+	float constexpr TWO_PI = 6.283185307179586f;
+	normalization = 1.0f / sqrt(TWO_PI * variance);
+	falloff = -0.5f / variance;
+}
+
+//------------------------------------------------------------------------------
+
+float DualMCExample::RadialGaussian::eval(float x, float y, float z) const {
+	// compute squared input point distance to gauss center
+	float const dx = x - cX;
+	float const dy = y - cY;
+	float const dz = z - cZ;
+	float const dSquared = dx * dx + dy * dy + dz * dz;
+	// compute gauss 
+	return normalization * exp(falloff * dSquared);
+}
