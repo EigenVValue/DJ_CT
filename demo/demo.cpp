@@ -21,7 +21,6 @@ using namespace glm;
 
 // Include common
 #include "shader.hpp"
-//#include "loadOBJ.hpp"
 //#include "controls.hpp"
 #include "controlsForFOV.hpp"
 #include "getNormals.hpp"
@@ -37,9 +36,7 @@ using namespace glm;
 const GLuint  WIDTH = 1024;
 const GLuint  HEIGHT = 768;
 const char* PATH // DCM path
-= "D:\\VS\\Project\\DJ_medical\\CT_img\\Recon_4";
-//= "D:\\VS\\Project\\DJ_medical\\CT_img\\CT-head\\CT-head\\LiZhanYou\\20200211153157\\1"; // error
-//= "D:\\VS\\Project\\DJ_medical\\CT_img\\Wu Li Juan\\Wu Li Juan\\20180910092809.000\\3";
+	= "D:\\VS\\Project\\DJ_medical\\CT_img\\Recon_4";
 const uint8_t ISO = 204;	// Isosurface
 const uint8_t THRESHOLD = 225;	// Threshold
 
@@ -182,25 +179,6 @@ int main(int argc, char* argv[]) {
 	int rescale_intercept;
 	unsigned short rescale_slope;
 	dcmFileToModel(PATH, ISO, THRESHOLD, vertices, faces, colors, rescale_intercept, rescale_slope);
-
-	// Load obj no need for now
-	/*
-	{
-		std::filesystem::path currPath = argv[0];
-		currPath = currPath.parent_path();
-		//currPath += "\\img\\cube.obj";
-		//currPath += "\\img\\head.obj";
-		//currPath += "\\img\\head2.obj";
-		currPath += "\\img\\bone2.obj";
-		char* path = currPath.string().data();
-		bool res = loadOBJ(path, objVertices, objFaces);
-		if (!res) {
-			printf("loadOBJ fail!");
-			return 0;
-		}
-	}*/
-	// Get vertex
-	//objVerticesToGLVertices(vertices, objVertices, objFaces);
 
 	// Get pivot (Need change)
 	{

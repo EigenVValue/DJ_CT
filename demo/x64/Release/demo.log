@@ -1,14 +1,14 @@
 ﻿  demo.cpp
-d:\github\dj_ct\demo\demo.cpp(231): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
-d:\github\dj_ct\demo\demo.cpp(412): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-d:\github\dj_ct\demo\demo.cpp(455): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-d:\github\dj_ct\demo\demo.cpp(498): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-d:\github\dj_ct\demo\demo.cpp(624): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+d:\github\dj_ct\demo\demo.cpp(209): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+d:\github\dj_ct\demo\demo.cpp(390): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+d:\github\dj_ct\demo\demo.cpp(433): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+d:\github\dj_ct\demo\demo.cpp(476): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+d:\github\dj_ct\demo\demo.cpp(602): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
 LINK : warning LNK4098: defaultlib 'LIBCMT' conflicts with use of other libs; use /NODEFAULTLIB:library
   Generating code
-  1210 of 1234 functions (98.1%) were compiled, the rest were copied from previous compilation.
-    8 functions were new in current compilation
-    3 functions had inline decision re-evaluated but remain unchanged
+  1 of 1234 functions (<0.1%) were compiled, the rest were copied from previous compilation.
+    0 functions were new in current compilation
+    1 functions had inline decision re-evaluated but remain unchanged
   Finished generating code
 shader.obj : warning LNK4049: locally defined symbol __glewLinkProgram imported
 shader.obj : warning LNK4049: locally defined symbol __glewDeleteShader imported
